@@ -1,0 +1,1000 @@
+--========================================================--
+--                    FIRE HUB
+--        HUB PERSISTENTE APÓS O RESPAWN
+--========================================================--
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+--========================================================--
+-- CONFIGURAÇÕES
+--========================================================--
+
+local ORANGE = Color3.fromRGB(255, 125, 0)
+local DARK_ORANGE = Color3.fromRGB(180, 70, 0)
+local LIGHT_ORANGE = Color3.fromRGB(255, 170, 70)
+
+local AIM_RADIUS = 100
+local AIM_DURATION = 550
+local AIM_COOLDOWN = 1
+
+--========================================================--
+-- CRIAR GUI
+--========================================================--
+
+local oldGui = playerGui:FindFirstChild("FireHub")
+
+if oldGui then
+	oldGui:Destroy()
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "FireHub"
+
+-- IMPORTANTE:
+-- Isso impede que o GUI seja apagado quando o jogador respawnar.
+gui.ResetOnSpawn = false
+
+gui.IgnoreGuiInset = true
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = playerGui
+
+--========================================================--
+-- BOTÃO FIRE
+--========================================================--
+
+local fireButton = Instance.new("TextButton")
+fireButton.Name = "FireButton"
+fireButton.Size = UDim2.fromOffset(130, 50)
+fireButton.Position = UDim2.new(0, 20, 0.5, -25)
+fireButton.BackgroundColor3 = ORANGE
+fireButton.Text = "🔥 FIRE"
+fireButton.TextColor3 = Color3.new(1, 1, 1)
+fireButton.TextSize = 20
+fireButton.Font = Enum.Font.GothamBold
+fireButton.AutoButtonColor = true
+fireButton.Parent = gui
+
+local fireCorner = Instance.new("UICorner")
+fireCorner.CornerRadius = UDim.new(0, 12)
+fireCorner.Parent = fireButton
+
+local fireStroke = Instance.new("UIStroke")
+fireStroke.Color = LIGHT_ORANGE
+fireStroke.Thickness = 2
+fireStroke.Parent = fireButton
+
+--========================================================--
+-- HUB
+--========================================================--
+
+local hub = Instance.new("Frame")
+hub.Name = "MainHub"
+hub.Size = UDim2.fromOffset(350, 430)
+hub.Position = UDim2.new(0.65, -175, 0.5, -215)
+hub.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+hub.Visible = false
+hub.Parent = gui
+
+local hubCorner = Instance.new("UICorner")
+hubCorner.CornerRadius = UDim.new(0, 16)
+hubCorner.Parent = hub
+
+local hubStroke = Instance.new("UIStroke")
+hubStroke.Color = ORANGE
+hubStroke.Thickness = 3
+hubStroke.Parent = hub
+
+--========================================================--
+-- TÍTULO
+--========================================================--
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -60, 0, 55)
+title.Position = UDim2.fromOffset(20, 5)
+title.BackgroundTransparency = 1
+title.Text = "🔥 FIRE HUB"
+title.TextColor3 = ORANGE
+title.TextSize = 26
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = hub
+
+local subtitle = Instance.new("TextLabel")
+subtitle.Size = UDim2.new(1, -40, 0, 25)
+subtitle.Position = UDim2.fromOffset(20, 45)
+subtitle.BackgroundTransparency = 1
+subtitle.Text = "6 poderes disponíveis"
+subtitle.TextColor3 = Color3.fromRGB(180, 180, 180)
+subtitle.TextSize = 13
+subtitle.Font = Enum.Font.Gotham
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.Parent = hub
+
+--========================================================--
+-- FECHAR
+--========================================================--
+
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.fromOffset(40, 40)
+closeButton.Position = UDim2.new(1, -48, 0, 10)
+closeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.new(1, 1, 1)
+closeButton.TextSize = 18
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Parent = hub
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 10)
+closeCorner.Parent = closeButton
+
+--========================================================--
+-- SCROLL
+--========================================================--
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -30, 1, -90)
+scroll.Position = UDim2.fromOffset(15, 80)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 5
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.Parent = hub
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 10)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.Parent = scroll
+
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	scroll.CanvasSize = UDim2.fromOffset(
+		0,
+		layout.AbsoluteContentSize.Y + 15
+	)
+end)
+
+--========================================================--
+-- CRIAR BOTÃO DE PODER
+--========================================================--
+
+local function createPowerButton(text)
+
+	local button = Instance.new("TextButton")
+
+	button.Size = UDim2.new(1, -10, 0, 50)
+	button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	button.Text = text .. ": OFF"
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.TextSize = 17
+	button.Font = Enum.Font.GothamBold
+	button.AutoButtonColor = false
+	button.Parent = scroll
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = button
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = DARK_ORANGE
+	stroke.Thickness = 1.5
+	stroke.Parent = button
+
+	return button
+end
+
+--========================================================--
+-- 1. AIM CIRCLE
+--========================================================--
+
+local aimButton = createPowerButton("🎯 AIM CIRCLE")
+
+local aimActive = false
+local aimCooldown = false
+local aimTarget = nil
+local aimActivation = 0
+
+local circle = Instance.new("Frame")
+circle.Name = "AimCircle"
+circle.Size = UDim2.fromOffset(
+	AIM_RADIUS * 2,
+	AIM_RADIUS * 2
+)
+circle.Position = UDim2.fromScale(0.5, 0.5)
+circle.AnchorPoint = Vector2.new(0.5, 0.5)
+circle.BackgroundTransparency = 1
+circle.Visible = false
+circle.Parent = gui
+
+local circleStroke = Instance.new("UIStroke")
+circleStroke.Color = Color3.fromRGB(0, 255, 255)
+circleStroke.Thickness = 3
+circleStroke.Parent = circle
+
+local circleCorner = Instance.new("UICorner")
+circleCorner.CornerRadius = UDim.new(1, 0)
+circleCorner.Parent = circle
+
+local function getTarget()
+
+	local camera = workspace.CurrentCamera
+	local closest = nil
+	local closestDistance = math.huge
+
+	local center = Vector2.new(
+		camera.ViewportSize.X / 2,
+		camera.ViewportSize.Y / 2
+	)
+
+	for _, other in ipairs(Players:GetPlayers()) do
+
+		if other ~= player and other.Character then
+
+			local humanoid =
+				other.Character:FindFirstChildOfClass("Humanoid")
+
+			local torso =
+				other.Character:FindFirstChild("UpperTorso")
+				or other.Character:FindFirstChild("Torso")
+				or other.Character:FindFirstChild("HumanoidRootPart")
+
+			if humanoid and humanoid.Health > 0 and torso then
+
+				local screenPos, visible =
+					camera:WorldToViewportPoint(torso.Position)
+
+				if visible and screenPos.Z > 0 then
+
+					local pos = Vector2.new(
+						screenPos.X,
+						screenPos.Y
+					)
+
+					local distance =
+						(pos - center).Magnitude
+
+					if distance <= AIM_RADIUS
+						and distance < closestDistance then
+
+						closestDistance = distance
+						closest = other
+					end
+				end
+			end
+		end
+	end
+
+	return closest
+end
+
+local function aimAt(target)
+
+	if not target or not target.Character then
+		return
+	end
+
+	local camera = workspace.CurrentCamera
+
+	local torso =
+		target.Character:FindFirstChild("UpperTorso")
+		or target.Character:FindFirstChild("Torso")
+		or target.Character:FindFirstChild("HumanoidRootPart")
+
+	if torso then
+
+		camera.CFrame = CFrame.lookAt(
+			camera.CFrame.Position,
+			torso.Position
+		)
+	end
+end
+
+local function stopAim()
+
+	if not aimActive then
+		return
+	end
+
+	aimActive = false
+	aimTarget = nil
+	circle.Visible = false
+
+	aimButton.Text =
+		"🎯 AIM CIRCLE: COOLDOWN"
+
+	aimButton.BackgroundColor3 =
+		Color3.fromRGB(100, 50, 30)
+
+	aimCooldown = true
+
+	task.delay(AIM_COOLDOWN, function()
+
+		aimCooldown = false
+
+		if not aimActive then
+
+			aimButton.Text =
+				"🎯 AIM CIRCLE: OFF"
+
+			aimButton.BackgroundColor3 =
+				Color3.fromRGB(45, 45, 45)
+		end
+	end)
+end
+
+local function startAim()
+
+	if aimActive or aimCooldown then
+		return
+	end
+
+	aimActive = true
+	aimActivation += 1
+
+	local id = aimActivation
+
+	circle.Visible = true
+
+	aimButton.Text =
+		"🎯 AIM CIRCLE: ON"
+
+	aimButton.BackgroundColor3 = ORANGE
+
+	task.spawn(function()
+
+		local start = tick()
+
+		while aimActive
+			and aimActivation == id
+			and tick() - start < AIM_DURATION do
+
+			local newTarget = getTarget()
+
+			if newTarget then
+				aimTarget = newTarget
+			end
+
+			if aimTarget then
+				aimAt(aimTarget)
+			end
+
+			RunService.RenderStepped:Wait()
+		end
+
+		if aimActive and aimActivation == id then
+			stopAim()
+		end
+	end)
+end
+
+aimButton.MouseButton1Click:Connect(function()
+
+	if aimActive then
+		stopAim()
+	else
+		startAim()
+	end
+end)
+
+--========================================================--
+-- 2. HIGHLIGHT
+--========================================================--
+
+local highlightButton =
+	createPowerButton("👁️ HIGHLIGHT")
+
+local highlightActive = false
+local playerConnections = {}
+
+local function removeHighlight(character)
+
+	if not character then
+		return
+	end
+
+	local highlight =
+		character:FindFirstChild("FireHighlight")
+
+	if highlight then
+		highlight:Destroy()
+	end
+
+	local head = character:FindFirstChild("Head")
+
+	if head then
+
+		local billboard =
+			head:FindFirstChild("FireName")
+
+		if billboard then
+			billboard:Destroy()
+		end
+	end
+end
+
+local function updateHighlight(other)
+
+	if not highlightActive then
+		return
+	end
+
+	local character = other.Character
+
+	if not character then
+		return
+	end
+
+	local highlight =
+		character:FindFirstChild("FireHighlight")
+
+	if not highlight then
+
+		highlight = Instance.new("Highlight")
+		highlight.Name = "FireHighlight"
+		highlight.DepthMode =
+			Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.Parent = character
+	end
+
+	local knife =
+		other.Backpack:FindFirstChild("Knife")
+		or character:FindFirstChild("Knife")
+
+	local gun =
+		other.Backpack:FindFirstChild("Gun")
+		or character:FindFirstChild("Gun")
+
+	if knife then
+
+		highlight.FillColor =
+			Color3.fromRGB(255, 0, 0)
+
+	elseif gun then
+
+		highlight.FillColor =
+			Color3.fromRGB(0, 80, 255)
+
+	else
+
+		highlight.FillColor =
+			Color3.fromRGB(0, 255, 0)
+	end
+
+	highlight.FillTransparency = 0.45
+	highlight.OutlineColor = Color3.new(1, 1, 1)
+
+	local head = character:FindFirstChild("Head")
+
+	if head and not head:FindFirstChild("FireName") then
+
+		local billboard = Instance.new("BillboardGui")
+
+		billboard.Name = "FireName"
+		billboard.Size = UDim2.fromOffset(120, 35)
+		billboard.StudsOffset =
+			Vector3.new(0, 2.8, 0)
+		billboard.AlwaysOnTop = true
+		billboard.Parent = head
+
+		local text = Instance.new("TextLabel")
+
+		text.Size = UDim2.fromScale(1, 1)
+		text.BackgroundTransparency = 1
+		text.Text = other.Name
+		text.TextColor3 = Color3.new(1, 1, 1)
+		text.TextStrokeTransparency = 0
+		text.Font = Enum.Font.GothamBold
+		text.TextScaled = true
+		text.Parent = billboard
+	end
+end
+
+local function monitorPlayer(other)
+
+	if other == player then
+		return
+	end
+
+	if playerConnections[other] then
+		return
+	end
+
+	playerConnections[other] = {}
+
+	table.insert(
+		playerConnections[other],
+		other.CharacterAdded:Connect(function()
+
+			task.wait(0.5)
+
+			if highlightActive then
+				updateHighlight(other)
+			end
+		end)
+	)
+
+	table.insert(
+		playerConnections[other],
+		other.Backpack.ChildAdded:Connect(function()
+
+			if highlightActive then
+				task.wait()
+				updateHighlight(other)
+			end
+		end)
+	)
+
+	table.insert(
+		playerConnections[other],
+		other.Backpack.ChildRemoved:Connect(function()
+
+			if highlightActive then
+				task.wait()
+				updateHighlight(other)
+			end
+		end)
+	)
+end
+
+local function enableHighlight()
+
+	highlightActive = true
+
+	highlightButton.Text =
+		"👁️ HIGHLIGHT: ON"
+
+	highlightButton.BackgroundColor3 = ORANGE
+
+	for _, other in ipairs(Players:GetPlayers()) do
+
+		if other ~= player then
+
+			monitorPlayer(other)
+			updateHighlight(other)
+		end
+	end
+end
+
+local function disableHighlight()
+
+	highlightActive = false
+
+	highlightButton.Text =
+		"👁️ HIGHLIGHT: OFF"
+
+	highlightButton.BackgroundColor3 =
+		Color3.fromRGB(45, 45, 45)
+
+	for _, other in ipairs(Players:GetPlayers()) do
+
+		if other ~= player then
+			removeHighlight(other.Character)
+		end
+	end
+end
+
+Players.PlayerAdded:Connect(function(other)
+
+	if highlightActive then
+		monitorPlayer(other)
+	end
+end)
+
+highlightButton.MouseButton1Click:Connect(function()
+
+	if highlightActive then
+		disableHighlight()
+	else
+		enableHighlight()
+	end
+end)
+
+--========================================================--
+-- 3. HITBOX
+--========================================================--
+
+local hitboxButton =
+	createPowerButton("📦 HITBOX")
+
+local hitboxActive = false
+local originalSizes = {}
+
+local function setHitbox(other)
+
+	if other == player then
+		return
+	end
+
+	local character = other.Character
+
+	if not character then
+		return
+	end
+
+	local hrp =
+		character:FindFirstChild("HumanoidRootPart")
+
+	if not hrp then
+		return
+	end
+
+	if not originalSizes[hrp] then
+
+		originalSizes[hrp] = {
+			Size = hrp.Size,
+			Transparency = hrp.Transparency,
+			CanCollide = hrp.CanCollide
+		}
+	end
+
+	hrp.Size = Vector3.new(10, 10, 10)
+	hrp.Transparency = 0.5
+	hrp.CanCollide = false
+end
+
+local function restoreHitbox()
+
+	for part, data in pairs(originalSizes) do
+
+		if part and part.Parent then
+
+			part.Size = data.Size
+			part.Transparency = data.Transparency
+			part.CanCollide = data.CanCollide
+		end
+	end
+
+	originalSizes = {}
+end
+
+local function enableHitbox()
+
+	hitboxActive = true
+
+	hitboxButton.Text =
+		"📦 HITBOX: ON"
+
+	hitboxButton.BackgroundColor3 = ORANGE
+
+	for _, other in ipairs(Players:GetPlayers()) do
+		setHitbox(other)
+	end
+end
+
+local function disableHitbox()
+
+	hitboxActive = false
+
+	hitboxButton.Text =
+		"📦 HITBOX: OFF"
+
+	hitboxButton.BackgroundColor3 =
+		Color3.fromRGB(45, 45, 45)
+
+	restoreHitbox()
+end
+
+Players.PlayerAdded:Connect(function(other)
+
+	other.CharacterAdded:Connect(function()
+
+		task.wait(1)
+
+		if hitboxActive then
+			setHitbox(other)
+		end
+	end)
+end)
+
+hitboxButton.MouseButton1Click:Connect(function()
+
+	if hitboxActive then
+		disableHitbox()
+	else
+		enableHitbox()
+	end
+end)
+
+--========================================================--
+-- 4. FPS CAP (substitui o NOCLIP)
+--========================================================--
+
+local fpsCapButton = createPowerButton("🎞️ FPS CAP")
+
+local FPS_ON = 15
+local FPS_OFF = 50
+local fpsCapActive = false
+
+local function definirFPS(valor)
+    if setfpscap then
+        setfpscap(valor)
+    else
+        warn("Seu ambiente não suporta setfpscap!")
+    end
+end
+
+local function enableFPSCap()
+    fpsCapActive = true
+    fpsCapButton.Text = "🎞️ FPS CAP: ON (15)"
+    fpsCapButton.BackgroundColor3 = ORANGE
+    definirFPS(FPS_ON)
+end
+
+local function disableFPSCap()
+    fpsCapActive = false
+    fpsCapButton.Text = "🎞️ FPS CAP: OFF (50)"
+    fpsCapButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    definirFPS(FPS_OFF)
+end
+
+fpsCapButton.MouseButton1Click:Connect(function()
+    if fpsCapActive then
+        disableFPSCap()
+    else
+        enableFPSCap()
+    end
+end)
+
+-- FPS começa em 50
+definirFPS(FPS_OFF)
+
+--========================================================--
+-- 5. FULLBRIGHT
+--========================================================--
+
+local fullbrightButton =
+	createPowerButton("💡 FULLBRIGHT")
+
+local fullbrightActive = false
+
+local originalLighting = {
+	Brightness = Lighting.Brightness,
+	Ambient = Lighting.Ambient,
+	OutdoorAmbient = Lighting.OutdoorAmbient
+}
+
+local function enableFullbright()
+
+	fullbrightActive = true
+
+	fullbrightButton.Text =
+		"💡 FULLBRIGHT: ON"
+
+	fullbrightButton.BackgroundColor3 = ORANGE
+
+	Lighting.Brightness = 5
+
+	Lighting.Ambient =
+		Color3.fromRGB(255, 255, 255)
+
+	Lighting.OutdoorAmbient =
+		Color3.fromRGB(255, 255, 255)
+end
+
+local function disableFullbright()
+
+	fullbrightActive = false
+
+	fullbrightButton.Text =
+		"💡 FULLBRIGHT: OFF"
+
+	fullbrightButton.BackgroundColor3 =
+		Color3.fromRGB(45, 45, 45)
+
+	Lighting.Brightness =
+		originalLighting.Brightness
+
+	Lighting.Ambient =
+		originalLighting.Ambient
+
+	Lighting.OutdoorAmbient =
+		originalLighting.OutdoorAmbient
+end
+
+fullbrightButton.MouseButton1Click:Connect(function()
+
+	if fullbrightActive then
+		disableFullbright()
+	else
+		enableFullbright()
+	end
+end)
+
+--========================================================--
+-- 6. FPS BOOSTER
+--========================================================--
+
+local fpsButton =
+	createPowerButton("⚡ FPS BOOSTER")
+
+local fpsActive = false
+local originalMaterials = {}
+
+local function enableFPS()
+
+	if fpsActive then
+		return
+	end
+
+	fpsActive = true
+
+	fpsButton.Text =
+		"⚡ FPS BOOSTER: ON"
+
+	fpsButton.BackgroundColor3 = ORANGE
+
+	Lighting.GlobalShadows = false
+	Lighting.FogEnd = 9e9
+	Lighting.Brightness = 2
+
+	for _, obj in ipairs(
+		workspace:GetDescendants()
+	) do
+
+		if obj:IsA("BasePart") then
+
+			if not originalMaterials[obj] then
+				originalMaterials[obj] = obj.Material
+			end
+
+			obj.Material =
+				Enum.Material.SmoothPlastic
+		end
+	end
+end
+
+local function disableFPS()
+
+	fpsActive = false
+
+	fpsButton.Text =
+		"⚡ FPS BOOSTER: OFF"
+
+	fpsButton.BackgroundColor3 =
+		Color3.fromRGB(45, 45, 45)
+
+	for obj, material in pairs(originalMaterials) do
+
+		if obj and obj.Parent then
+			obj.Material = material
+		end
+	end
+
+	originalMaterials = {}
+end
+
+fpsButton.MouseButton1Click:Connect(function()
+
+	if fpsActive then
+		disableFPS()
+	else
+		enableFPS()
+	end
+end)
+
+--========================================================--
+-- ABRIR / FECHAR
+--========================================================--
+
+fireButton.MouseButton1Click:Connect(function()
+
+	hub.Visible = not hub.Visible
+
+	if hub.Visible then
+		fireButton.Text = "🔥 CLOSE"
+	else
+		fireButton.Text = "🔥 FIRE"
+	end
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+
+	hub.Visible = false
+	fireButton.Text = "🔥 FIRE"
+end)
+
+--========================================================--
+-- DRAG DO HUB
+--========================================================--
+
+local dragging = false
+local dragStart
+local startPosition
+
+local function updateDrag(input)
+
+	local delta =
+		input.Position - dragStart
+
+	hub.Position = UDim2.new(
+		startPosition.X.Scale,
+		startPosition.X.Offset + delta.X,
+		startPosition.Y.Scale,
+		startPosition.Y.Offset + delta.Y
+	)
+end
+
+hub.InputBegan:Connect(function(input)
+
+	if input.UserInputType ==
+		Enum.UserInputType.MouseButton1
+		or input.UserInputType ==
+		Enum.UserInputType.Touch then
+
+		dragging = true
+		dragStart = input.Position
+		startPosition = hub.Position
+
+		input.Changed:Connect(function()
+
+			if input.UserInputState ==
+				Enum.UserInputState.End then
+
+				dragging = false
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+
+	if dragging then
+
+		if input.UserInputType ==
+			Enum.UserInputType.MouseMovement
+			or input.UserInputType ==
+			Enum.UserInputType.Touch then
+
+			updateDrag(input)
+		end
+	end
+end)
+
+--========================================================--
+-- GARANTIR FIRE APÓS RESPAWN
+--========================================================--
+
+player.CharacterAdded:Connect(function()
+
+	task.wait(0.5)
+
+	-- Garante que o GUI continue no PlayerGui
+	if gui.Parent ~= playerGui then
+		gui.Parent = playerGui
+	end
+
+	-- Garante que o Roblox não remova o GUI
+	gui.ResetOnSpawn = false
+
+	-- Garante que o botão continue na tela
+	fireButton.Visible = true
+end)
+
+--========================================================--
+-- VERIFICAÇÃO EXTRA
+--========================================================--
+
+task.spawn(function()
+
+	while gui.Parent do
+
+		task.wait(2)
+
+		if gui.Parent ~= playerGui then
+			gui.Parent = playerGui
+		end
+
+		if not fireButton.Parent then
+			break
+		end
+	end
+end)
+
+--========================================================--
+-- FIRE HUB CARREGADO
+--========================================================--
